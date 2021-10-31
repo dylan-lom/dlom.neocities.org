@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>> /dev/null 2>&1</title>
+    <!-- The style.css file allows you to change the look of your web pages.
+         If you include the next line in all your web pages, they will all share the same look.
+         This makes it easier to make new pages for your site. -->
+    <link href="/style.css" rel="stylesheet" type="text/css" media="all">
+    <script>
+    String.prototype.partition = function(delim) {
+      const [head, ...rest] = this.split(delim)
+      return [head, rest.join(delim)]
+    }
+
+    Array.prototype.tail = function() {
+      return this[this.length-1]
+    }
+
+    window.whoami = "djl"
+
+    function Result(msg, status) {
+      this.msg = msg
+      this.status = status
+    }
+
+    Result.prototype.display = function() {
+      const el = document.getElementById("result")
+      el.textContent = this.msg
+
+      if (this.status == "error") el.style.color = "red"
+      else if (this.status == "success") el.style.color = "green"
+      else el.style.color = "white"
+    }
+
+    window.cmds = {
+      "help": function() {
+        const cmdKeys = Object.keys(window.cmds).sort()
+        return new Result(["COMMANDS", "========",].concat(cmdKeys).join("\n"))
+      },
+      "ls": function() {
+         return new Result([
+            "lr-------- 1 root root 15 Oct 31 20:16 blog",
+            "lr-------- 1 root root 15 Oct 31 20:16 code",
+        ].join("\n"))
+      },
+      "pwd": function() { return new Result("/tmp") },
+      "whoami": function() { return new Result(window.whoami) },
+      "cat": function(file) {
+        if (window.whoami != "root") return new Result("Permission denied", "error")
+
+        // Checking the actual path seems like too much work...
+        fname = file.split("/").tail()
+        // Wait this isn't standard behaviour...
+        if (fname == "blog") return new Result("http://dlom.cc")
+        if (fname == "code") return new Result("https://github.com/dylan-lom")
+        return new Result("file '" + file + "' does not exist", "error")
+      },
+      "open": function(file) {
+        const result = window.cmds.cat(file)
+        if (result.status != "error") {
+          window.open(result.msg)
+          result.msg = "Opened " + result.msg
+          result.status = "success"
+        }
+        return result
+      },
+      "echo": function(msg) {
+        return new Result(msg)
+      }
+    }
+
+    function evalCmd(fullCmd) {
+      let result;
+      const [cmd, args] = fullCmd.partition(" ")
+
+      if (fullCmd.includes(":wq")) result = new Result("WARNING: The file has been changed since reading it!!!", "error")
+      else if (!Object.keys(window.cmds).includes(cmd)) {
+        result = new Result(cmd + ": command not found", "error")
+      } else {
+        result = window.cmds[cmd](args)
+      }
+      result.display()
+    }
+
+    function init() {
+      document.getElementById("form").onsubmit = submit
+      resetPrompt()
+    }
+
+    function resetPrompt() {
+      const prompt = document.getElementById("prompt")
+      if (window.whoami == "root") {
+        prompt.value = "# "
+      } else {
+        prompt.value = "$ "
+      }
+
+      prompt.focus()
+      prompt.setSelectionRange(2, 2)
+    }
+
+    function submit(ev) {
+      ev.preventDefault()
+      const prompt = document.getElementById("prompt")
+      if (prompt.value[0] == '#') {
+        window.whoami = "root"
+      } else if (prompt.value[0] == "$") {
+        window.whoami = "djl"
+      }
+
+      evalCmd(prompt.value.substring(1).trim())
+      resetPrompt()
+    }
+
+    </script>
+
+  </head>
+  <body onload="init()">
+    <div class='center'>
+      <form id="form">
+        <input id="prompt" type="text">
+      </form>
+      <pre><code id="result"></code></pre>
+    </div>
+      
+  </body>
+</html>
